@@ -1,1 +1,1 @@
-
+University: ITMO University \ Faculty: FICT \ Course: Vibe Coding: AI-боты для бизнеса \ Year: 2025/2026 \ Group: U4125 \ Author: Vinogradskaia Anastasia Leonidovna \ Lab: Lab2 \Date of create: 10.04.2026 \Date of finished: 10.04.2026
