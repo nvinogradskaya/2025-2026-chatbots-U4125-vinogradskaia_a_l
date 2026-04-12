@@ -14,11 +14,13 @@ from telegram.ext import (
 
 import logging
 
+# ================= LOGGING =================
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
+# ================= ENV =================
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 
@@ -32,14 +34,12 @@ PRIORITY_MAP = {
     "низкий": 1,
 }
 
-
 # ================= CSV =================
 
 def init_csv():
-    if not os.path.exists(CSV_FILE):
-        with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["user_id", "text", "priority", "created_at"])
+    with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["user_id", "text", "priority", "created_at"])
 
 
 def save_task_to_csv(user_id, text, priority):
@@ -66,30 +66,16 @@ def load_tasks_from_csv():
     return tasks
 
 
-def save_all_tasks(tasks):
-    with open(CSV_FILE, "w", encoding="utf-8", newline="\n") as f:
-        writer = csv.writer(f)
-        writer.writerow(["user_id", "text", "priority", "created_at"])
-
-        for t in tasks:
-            writer.writerow([
-                t["user_id"],
-                t["text"],
-                t["priority"],
-                t["created_at"]
-            ])
-
-
-# ================= Команды =================
+# ================= COMMANDS =================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Привет! Я To-Do бот\n"
+        "Привет! Это To-Do бот 📝\n\n"
         "/add — добавить задачу\n"
         "/list — список задач\n"
-        "/search текст — поиск\n"
+        "/search слово — поиск\n"
         "/today — задачи за сегодня\n"
-        "/done N — удалить задачу"
+        "/done — (пока не реализовано)"
     )
 
 
@@ -99,7 +85,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/list — список\n"
         "/search текст — поиск\n"
         "/today — задачи за сегодня\n"
-        "/done N — удалить"
+        "/done — удалить (в разработке)"
     )
 
 
@@ -124,7 +110,7 @@ async def add_priority(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return TASK_PRIORITY
 
     context.user_data["priority"] = priority
-    await update.message.reply_text("Введите время (в минутах, можно 0):")
+    await update.message.reply_text("Введите время напоминания (в минутах, можно 0):")
     return TASK_TIME
 
 
@@ -135,31 +121,31 @@ async def add_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Введите число")
         return TASK_TIME
 
+    user_id = update.effective_user.id
     text = context.user_data["text"]
     priority = context.user_data["priority"]
-    user_id = str(update.effective_user.id)
 
     save_task_to_csv(user_id, text, priority)
 
-    await update.message.reply_text("Задача добавлена ✔")
+    await update.message.reply_text("Задача добавлена ✅")
     return ConversationHandler.END
 
 
 # ================= LIST =================
 
 async def list_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     tasks = load_tasks_from_csv()
 
-    tasks = [t for t in tasks if t["user_id"] == user_id]
+    tasks = [t for t in tasks if str(t["user_id"]) == str(user_id)]
 
     if not tasks:
-        await update.message.reply_text("У тебя нет задач")
+        await update.message.reply_text("У вас пока нет задач")
         return
 
     tasks = sorted(tasks, key=lambda x: x["priority_value"], reverse=True)
 
-    message = "Твои задачи:\n\n"
+    message = "Ваши задачи:\n\n"
     for i, task in enumerate(tasks, 1):
         message += f"{i}. {task['text']} ({task['priority']})\n"
 
@@ -173,11 +159,11 @@ async def search_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Введите текст: /search слово")
         return
 
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     keyword = " ".join(context.args).lower()
 
     tasks = load_tasks_from_csv()
-    tasks = [t for t in tasks if t["user_id"] == user_id]
+    tasks = [t for t in tasks if str(t["user_id"]) == str(user_id)]
 
     results = [t for t in tasks if keyword in t["text"].lower()]
 
@@ -185,7 +171,7 @@ async def search_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Ничего не найдено")
         return
 
-    message = "Результаты:\n\n"
+    message = "Результаты поиска:\n\n"
     for t in results:
         message += f"- {t['text']} ({t['priority']})\n"
 
@@ -195,11 +181,11 @@ async def search_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= TODAY =================
 
 async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     today = datetime.now().strftime("%Y-%m-%d")
 
     tasks = load_tasks_from_csv()
-    tasks = [t for t in tasks if t["user_id"] == user_id]
+    tasks = [t for t in tasks if str(t["user_id"]) == str(user_id)]
 
     results = [t for t in tasks if t["created_at"] == today]
 
@@ -207,7 +193,7 @@ async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Сегодня задач нет")
         return
 
-    message = "Сегодня:\n\n"
+    message = "Задачи на сегодня:\n\n"
     for t in results:
         message += f"- {t['text']} ({t['priority']})\n"
 
@@ -217,36 +203,18 @@ async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= DONE =================
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Используй: /done N")
-        return
-
-    try:
-        index = int(context.args[0]) - 1
-    except:
-        await update.message.reply_text("Введите номер задачи")
-        return
-
-    user_id = str(update.effective_user.id)
-    tasks = load_tasks_from_csv()
-
-    user_tasks = [t for t in tasks if t["user_id"] == user_id]
-
-    if index < 0 or index >= len(user_tasks):
-        await update.message.reply_text("Неверный номер")
-        return
-
-    task_to_remove = user_tasks[index]
-
-    tasks.remove(task_to_remove)
-    save_all_tasks(tasks)
-
-    await update.message.reply_text("Задача удалена ✔")
+    await update.message.reply_text(
+        "Удаление задач пока не реализовано"
+    )
 
 
 # ================= MAIN =================
 
 def main():
+    # 💥 очищаем старый CSV при каждом деплое
+    if os.path.exists(CSV_FILE):
+        os.remove(CSV_FILE)
+
     init_csv()
 
     app = ApplicationBuilder().token(TOKEN).build()
@@ -269,7 +237,8 @@ def main():
     app.add_handler(CommandHandler("done", done))
     app.add_handler(conv_handler)
 
-    logging.info("Bot started")
+    print("Bot started...")
+
     app.run_polling()
 
 
