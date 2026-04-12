@@ -165,10 +165,19 @@ async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= MAIN =================
 
 def main():
-    delete_db_on_start()  # убирает старые 13 задач
+    # ВСЕГДА чистим БД при старте (для учебного проекта)
+    if os.path.exists(DB_FILE):
+        os.remove(DB_FILE)
+
     init_db()
 
+    print("TOKEN =", TOKEN)  # проверка, что токен реально загрузился
+
     app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("list", list_tasks))
+    app.add_handler(CommandHandler("today", today_tasks))
 
     conv = ConversationHandler(
         entry_points=[CommandHandler("add", add_start)],
@@ -179,9 +188,6 @@ def main():
         fallbacks=[],
     )
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("list", list_tasks))
-    app.add_handler(CommandHandler("today", today_tasks))
     app.add_handler(conv)
 
     print("Bot started...")
