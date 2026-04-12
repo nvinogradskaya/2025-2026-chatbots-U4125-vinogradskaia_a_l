@@ -1,9 +1,9 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, time
 
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -11,6 +11,7 @@ from telegram.ext import (
     ConversationHandler,
     MessageHandler,
     filters,
+    CallbackQueryHandler,
 )
 
 import logging
@@ -73,18 +74,27 @@ def add_task(user_id, text, priority, tag, reminder_time):
     conn.close()
 
 
-def get_tasks(user_id):
+def get_tasks(user_id, mode="all", tag=None):
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
-    cur.execute("""
+    query = """
         SELECT id, text, priority, tag, reminder_time, is_done, created_at
         FROM tasks
         WHERE user_id = ? AND is_deleted = 0
-    """, (user_id,))
+    """
 
+    cur.execute(query, (user_id,))
     rows = cur.fetchall()
     conn.close()
+
+    if mode == "active":
+        rows = [r for r in rows if r[5] == 0]
+    elif mode == "done":
+        rows = [r for r in rows if r[5] == 1]
+
+    if tag:
+        rows = [r for r in rows if r[3] == tag]
 
     return rows
 
@@ -94,8 +104,7 @@ def mark_done(task_id, user_id):
     cur = conn.cursor()
 
     cur.execute("""
-        UPDATE tasks
-        SET is_done = 1
+        UPDATE tasks SET is_done = 1
         WHERE id = ? AND user_id = ?
     """, (task_id, user_id))
 
@@ -108,13 +117,23 @@ def delete_task(task_id, user_id):
     cur = conn.cursor()
 
     cur.execute("""
-        UPDATE tasks
-        SET is_deleted = 1
+        UPDATE tasks SET is_deleted = 1
         WHERE id = ? AND user_id = ?
     """, (task_id, user_id))
 
     conn.commit()
     conn.close()
+
+
+# ================= UI =================
+
+def task_keyboard(task_id):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✔ Done", callback_data=f"done:{task_id}"),
+            InlineKeyboardButton("🗑 Delete", callback_data=f"del:{task_id}")
+        ]
+    ])
 
 
 # ================= COMMANDS =================
@@ -123,11 +142,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "📝 To-Do бот\n\n"
         "/add — добавить задачу\n"
-        "/list — список задач\n"
-        "/done <id> — отметить выполненной\n"
-        "/delete <id> — удалить задачу\n"
+        "/list [active/done/tag]\n"
         "/stats — статистика\n"
-        "/today — задачи за сегодня\n"
         "/help — помощь"
     )
 
@@ -153,7 +169,7 @@ async def add_priority(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return TASK_PRIORITY
 
     context.user_data["priority"] = priority
-    await update.message.reply_text("Время напоминания (HH:MM или -):")
+    await update.message.reply_text("Время напоминания HH:MM или -")
     return TASK_TIME
 
 
@@ -161,7 +177,7 @@ async def add_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     context.user_data["time"] = None if text == "-" else text
 
-    await update.message.reply_text(f"Тег {TAGS}:")
+    await update.message.reply_text(f"Тег {TAGS}")
     return TASK_TAG
 
 
@@ -172,10 +188,8 @@ async def add_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Выбери из {TAGS}")
         return TASK_TAG
 
-    user_id = update.effective_user.id
-
     add_task(
-        user_id,
+        update.effective_user.id,
         context.user_data["text"],
         context.user_data["priority"],
         tag,
@@ -190,116 +204,102 @@ async def add_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def list_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    tasks = get_tasks(user_id)
+
+    mode = "all"
+    tag = None
+
+    if context.args:
+        if context.args[0] in ["active", "done"]:
+            mode = context.args[0]
+        else:
+            tag = context.args[0]
+
+    tasks = get_tasks(user_id, mode=mode, tag=tag)
 
     if not tasks:
-        await update.message.reply_text("У вас нет задач")
+        await update.message.reply_text("Нет задач")
         return
 
-    msg = "📋 Ваши задачи:\n\n"
+    msg = "📋 Задачи:\n\n"
 
     for t in tasks:
         status = "✅" if t[5] else "⏳"
-        msg += f"{t[0]}. {t[1]} [{t[2]} | {t[3]}] {t[4] or ''} {status}\n"
+        msg += f"{t[0]}. {t[1]} [{t[2]} | {t[3]}] {status}\n"
 
-    await update.message.reply_text(msg)
-
-
-# ================= DONE =================
-
-async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Используй: /done <id>")
-        return
-
-    task_id = int(context.args[0])
-    user_id = update.effective_user.id
-
-    mark_done(task_id, user_id)
-
-    await update.message.reply_text("Задача выполнена 🎉")
+        await update.message.reply_text(
+            f"{t[1]} ({t[2]})",
+            reply_markup=task_keyboard(t[0])
+        )
 
 
-# ================= DELETE =================
+# ================= INLINE BUTTONS =================
 
-async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Используй: /delete <id>")
-        return
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
-    task_id = int(context.args[0])
-    user_id = update.effective_user.id
+    action, task_id = query.data.split(":")
+    user_id = query.from_user.id
 
-    delete_task(task_id, user_id)
+    if action == "done":
+        mark_done(task_id, user_id)
+        await query.edit_message_text("✔ Выполнено")
 
-    await update.message.reply_text("Задача удалена 🗑")
-
-
-# ================= TODAY =================
-
-async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    tasks = get_tasks(user_id)
-    tasks_today = [t for t in tasks if t[6] == today]
-
-    if not tasks_today:
-        await update.message.reply_text("Сегодня задач нет")
-        return
-
-    msg = "📅 Сегодня:\n\n"
-    for t in tasks_today:
-        msg += f"- {t[1]} ({t[2]})\n"
-
-    await update.message.reply_text(msg)
+    elif action == "del":
+        delete_task(task_id, user_id)
+        await query.edit_message_text("🗑 Удалено")
 
 
 # ================= STATS =================
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    tasks = get_tasks(user_id)
+    tasks = get_tasks(update.effective_user.id)
 
     total = len(tasks)
-    done_count = sum(1 for t in tasks if t[5])
-    not_done = total - done_count
+    done = sum(1 for t in tasks if t[5])
 
-    priorities = {"высокий":0, "средний":0, "низкий":0}
-    for t in tasks:
-        priorities[t[2]] += 1
+    msg = f"""
+📊 Статистика
 
-    msg = (
-        "📊 Статистика\n\n"
-        f"Всего задач: {total}\n"
-        f"Выполнено: {done_count}\n"
-        f"Активных: {not_done}\n\n"
-        f"Приоритеты:\n"
-        f"- высокий: {priorities['высокий']}\n"
-        f"- средний: {priorities['средний']}\n"
-        f"- низкий: {priorities['низкий']}\n\n"
-    )
+Всего: {total}
+Выполнено: {done}
+Активных: {total - done}
+"""
 
-    if done_count / total > 0.6:
-        msg += "Ты молодец, так держать 🔥"
+    if total > 0 and done / total > 0.6:
+        msg += "\n🔥 Ты молодец!"
 
     await update.message.reply_text(msg)
+
+
+# ================= REMINDERS =================
+
+async def reminder_job(context: ContextTypes.DEFAULT_TYPE):
+    now = datetime.now().strftime("%H:%M")
+
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT user_id, text FROM tasks
+        WHERE reminder_time = ? AND is_done = 0 AND is_deleted = 0
+    """, (now,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    for user_id, text in rows:
+        await context.bot.send_message(user_id, f"⏰ Напоминание: {text}")
 
 
 # ================= HELP =================
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📝 To-Do бот\n\n"
-        "/add — добавить задачу\n"
-        "/list — список\n"
-        "/done <id> — выполнить задачу\n"
-        "/delete <id> — удалить задачу\n"
-        "/today — задачи за сегодня\n"
-        "/stats — статистика\n\n"
-        "Теги: работа, учеба, хобби, здоровье, дом, прочее\n"
-        "Приоритет: высокий / средний / низкий\n"
-        "Время: HH:MM (или -)"
+        "/add — добавить\n"
+        "/list [active/done/tag] — список\n"
+        "inline кнопки: done / delete\n"
+        "/stats — статистика\n"
     )
 
 
@@ -326,12 +326,15 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("list", list_tasks))
-    app.add_handler(CommandHandler("today", today_tasks))
-    app.add_handler(CommandHandler("done", done))
-    app.add_handler(CommandHandler("delete", delete))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("help", help_command))
+
     app.add_handler(conv)
+
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    # scheduler (каждую минуту проверяем напоминания)
+    app.job_queue.run_repeating(reminder_job, interval=60, first=10)
 
     print("Bot started...")
     app.run_polling()
