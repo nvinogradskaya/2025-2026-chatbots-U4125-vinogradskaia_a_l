@@ -39,20 +39,14 @@ def init_csv():
     if not os.path.exists(CSV_FILE):
         with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["text", "priority", "created_at"])
+            writer.writerow(["user_id", "text", "priority", "created_at"])
 
 
-def save_task_to_csv(text, priority):
-    file_exists = os.path.isfile(CSV_FILE)
-
+def save_task_to_csv(user_id, text, priority):
     with open(CSV_FILE, "a", encoding="utf-8", newline="\n") as f:
         writer = csv.writer(f)
-
-        # если файл пуст — добавляем заголовок
-        if not file_exists or os.stat(CSV_FILE).st_size == 0:
-            writer.writerow(["text", "priority", "created_at"])
-
         writer.writerow([
+            user_id,
             text,
             priority,
             datetime.now().strftime("%Y-%m-%d")
@@ -72,16 +66,30 @@ def load_tasks_from_csv():
     return tasks
 
 
+def save_all_tasks(tasks):
+    with open(CSV_FILE, "w", encoding="utf-8", newline="\n") as f:
+        writer = csv.writer(f)
+        writer.writerow(["user_id", "text", "priority", "created_at"])
+
+        for t in tasks:
+            writer.writerow([
+                t["user_id"],
+                t["text"],
+                t["priority"],
+                t["created_at"]
+            ])
+
+
 # ================= Команды =================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Привет! Я обновленный To-Do бот с CSV.\n"
+        "Привет! Я To-Do бот\n"
         "/add — добавить задачу\n"
         "/list — список задач\n"
-        "/search — поиск\n"
+        "/search текст — поиск\n"
         "/today — задачи за сегодня\n"
-        "/done — удалить задачу"
+        "/done N — удалить задачу"
     )
 
 
@@ -116,7 +124,7 @@ async def add_priority(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return TASK_PRIORITY
 
     context.user_data["priority"] = priority
-    await update.message.reply_text("Введите время напоминания (в минутах, можно 0):")
+    await update.message.reply_text("Введите время (в минутах, можно 0):")
     return TASK_TIME
 
 
@@ -129,25 +137,29 @@ async def add_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = context.user_data["text"]
     priority = context.user_data["priority"]
+    user_id = str(update.effective_user.id)
 
-    save_task_to_csv(text, priority)
+    save_task_to_csv(user_id, text, priority)
 
-    await update.message.reply_text("Задача добавлена в CSV!")
+    await update.message.reply_text("Задача добавлена ✔")
     return ConversationHandler.END
 
 
 # ================= LIST =================
 
 async def list_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
     tasks = load_tasks_from_csv()
 
+    tasks = [t for t in tasks if t["user_id"] == user_id]
+
     if not tasks:
-        await update.message.reply_text("Нет задач")
+        await update.message.reply_text("У тебя нет задач")
         return
 
     tasks = sorted(tasks, key=lambda x: x["priority_value"], reverse=True)
 
-    message = "Задачи:\n\n"
+    message = "Твои задачи:\n\n"
     for i, task in enumerate(tasks, 1):
         message += f"{i}. {task['text']} ({task['priority']})\n"
 
@@ -161,8 +173,11 @@ async def search_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Введите текст: /search слово")
         return
 
+    user_id = str(update.effective_user.id)
     keyword = " ".join(context.args).lower()
+
     tasks = load_tasks_from_csv()
+    tasks = [t for t in tasks if t["user_id"] == user_id]
 
     results = [t for t in tasks if keyword in t["text"].lower()]
 
@@ -170,7 +185,7 @@ async def search_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Ничего не найдено")
         return
 
-    message = "Результаты поиска:\n\n"
+    message = "Результаты:\n\n"
     for t in results:
         message += f"- {t['text']} ({t['priority']})\n"
 
@@ -180,8 +195,11 @@ async def search_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= TODAY =================
 
 async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
     today = datetime.now().strftime("%Y-%m-%d")
+
     tasks = load_tasks_from_csv()
+    tasks = [t for t in tasks if t["user_id"] == user_id]
 
     results = [t for t in tasks if t["created_at"] == today]
 
@@ -189,7 +207,7 @@ async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Сегодня задач нет")
         return
 
-    message = "Задачи на сегодня:\n\n"
+    message = "Сегодня:\n\n"
     for t in results:
         message += f"- {t['text']} ({t['priority']})\n"
 
@@ -199,9 +217,31 @@ async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= DONE =================
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Удаление не реализовано для CSV версии (упрощение)"
-    )
+    if not context.args:
+        await update.message.reply_text("Используй: /done N")
+        return
+
+    try:
+        index = int(context.args[0]) - 1
+    except:
+        await update.message.reply_text("Введите номер задачи")
+        return
+
+    user_id = str(update.effective_user.id)
+    tasks = load_tasks_from_csv()
+
+    user_tasks = [t for t in tasks if t["user_id"] == user_id]
+
+    if index < 0 or index >= len(user_tasks):
+        await update.message.reply_text("Неверный номер")
+        return
+
+    task_to_remove = user_tasks[index]
+
+    tasks.remove(task_to_remove)
+    save_all_tasks(tasks)
+
+    await update.message.reply_text("Задача удалена ✔")
 
 
 # ================= MAIN =================
@@ -229,7 +269,7 @@ def main():
     app.add_handler(CommandHandler("done", done))
     app.add_handler(conv_handler)
 
-    print("Bot started...")
+    logging.info("Bot started")
     app.run_polling()
 
 
