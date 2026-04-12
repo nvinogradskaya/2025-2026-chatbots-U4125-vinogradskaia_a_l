@@ -161,7 +161,22 @@ async def today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(msg)
 
-
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📝 To-Do бот — функционал\n\n"
+        "/start — старт бота\n"
+        "/help — помощь\n\n"
+        "/add — добавить задачу\n"
+        "   → шаг 1: текст\n"
+        "   → шаг 2: приоритет\n\n"
+        "/list — список всех задач\n"
+        "/today — задачи за сегодня\n\n"
+        "📌 Приоритеты:\n"
+        "высокий / средний / низкий\n\n"
+        "📌 Особенности:\n"
+        "- задачи привязаны к пользователю\n"
+        "- данные хранятся в SQLite\n"
+    )
 # ================= MAIN =================
 
 def main():
@@ -178,6 +193,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("list", list_tasks))
     app.add_handler(CommandHandler("today", today_tasks))
+    app.add_handler(CommandHandler("help", help_command))
 
     conv = ConversationHandler(
         entry_points=[CommandHandler("add", add_start)],
