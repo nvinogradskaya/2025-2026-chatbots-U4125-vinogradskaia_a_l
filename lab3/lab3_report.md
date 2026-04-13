@@ -4,7 +4,7 @@ Course: Vibe Coding: AI-боты для бизнеса
 Year: 2025/2026  
 Group: U4125  
 Author: Vinogradskaia Anastasia Leonidovna  
-Lab: Lab2  
+Lab: Lab3  
 Date of create: 12.04.2026  
 Date of finished: 13.04.2026
 
@@ -25,16 +25,14 @@ Date of finished: 13.04.2026
 
 ## 2. Выбор платформы для деплоя
 
-Для развертывания приложения был выбран сервис Railway.
+Для развертывания приложения был выбран сервис Railway:
 
-Причины выбора:
-
-* автоматическая интеграция с GitHub
-* простой процесс деплоя без ручной настройки сервера
+* автоматическая интеграция с гитхабом
+* простой процесс деплоя 
 * поддержка переменных окружения
 * возможность автоматического перезапуска при обновлениях кода
 
-Данный вариант был выбран как наиболее быстрый и стабильный для учебного проекта без необходимости настройки инфраструктуры вручную.
+данный вариант был выбран как наиболее быстрый для учебного проекта
 
 ---
 
@@ -48,6 +46,7 @@ Date of finished: 13.04.2026
 6. Проверена работоспособность бота через Telegram
 
 <img width="1310" height="743" alt="image" src="https://github.com/user-attachments/assets/b2a2f004-b2c6-4b1e-9572-c61128e2452d" />
+<img width="963" height="651" alt="image" src="https://github.com/user-attachments/assets/8d892dd1-857d-4bfb-8575-3d35ff82cefc" />
 
 
 ---
@@ -65,7 +64,7 @@ Date of finished: 13.04.2026
 
 ### 2) Ошибка webhook 
 
-Telegram фиксировал активный webhook, из-за чего polling не запускался корректно
+тг фиксировал активный webhook, из-за чего polling не запускался корректно
 
 * выполнен вызов deleteWebhook через API Telegram
 * проверено через getWebhookInfo
@@ -79,6 +78,8 @@ Telegram фиксировал активный webhook, из-за чего polli
 * создан новый бот через BotFather
 * обновлен токен в Railway Variables
 * выполнена повторная проверка загрузки переменной окружения
+<img width="805" height="215" alt="image" src="https://github.com/user-attachments/assets/433af3c2-df86-4c99-9e80-c68a1ba60032" />
+
 
 ---
 
@@ -91,14 +92,15 @@ Telegram фиксировал активный webhook, из-за чего polli
 в итоге:
 * добавлена зависимость в requirements.txt
 * пересобран проект в Railway
+<img width="805" height="156" alt="image" src="https://github.com/user-attachments/assets/5ae35d24-d444-4c33-b3d5-172fd4059937" />
 
 ---
 
 ## 5. Переход на базу данных SQLite
 
-Изначально данные хранились в упрощенной форме, без долговременного хранения.
+Изначально данные хранились в упрощенной форме в csv
 
-После анализа требований была внедрена SQLite база данных.
+После анализа требований была внедрена SQLite база данных (для более корректной работы с несколькими пользователями)
 
 ### Причины перехода:
 
@@ -131,7 +133,7 @@ Telegram фиксировал активный webhook, из-за чего polli
 
 ## 6. Реализованный функционал + сбор фидбека
 
-Базовый функционал на старте:
+Базовый функционал на старте (до улучшений):
 Привет! Я To-Do бот
 
 Команды:
@@ -141,17 +143,30 @@ done — завершить задачу
 help — помощь
 
 
-
-
 ## Сбор фидбека
+Для тестирования было привлечено 3 пользователя, которым был отправлен бот в тг
 
-Для тестирования было привлечено 3 пользователя, которым был отправлен бот в Telegram  
+Юзер №1
+<img width="590" height="1280" alt="image" src="https://github.com/user-attachments/assets/66ba6cb6-94e8-4434-a060-46c13a079301" />
+<img width="805" height="217" alt="image" src="https://github.com/user-attachments/assets/a5c271e5-d738-49e4-83ce-daf275608227" />
 
+Юзер №2
+<img width="591" height="1280" alt="image" src="https://github.com/user-attachments/assets/d32ab2c6-9360-44b4-be21-931ff9554b39" />
+<img width="591" height="1280" alt="image" src="https://github.com/user-attachments/assets/75ea7e22-4883-4b3b-8699-4032895b54b5" />
+<img width="805" height="134" alt="image" src="https://github.com/user-attachments/assets/cd7adeb8-564b-4bec-a242-4336bbc24045" />
+
+Юзер №3
+<img width="1178" height="2560" alt="image" src="https://github.com/user-attachments/assets/ba2a5593-4a43-4858-a286-5c6d34ce6c5e" />
+<img width="805" height="258" alt="image" src="https://github.com/user-attachments/assets/464144aa-975a-4396-8770-a3698c421f01" />
 
 
 ### Общие наблюдения
 
-Пользователи активно тестировали добавление задач и просмотр списка, но быстро упирались в ограничения базового функционала + не хватало доп функций
+Пользователи активно тестировали добавление задач и просмотр списка, но быстро упирались в ограничения базового функционала + не хватало доп функций 
+
+по логам все ок
+<img width="2868" height="1618" alt="image" src="https://github.com/user-attachments/assets/c10752b7-f837-4ac4-bc62-84cbdb6ef065" />
+
 
 ---
 
@@ -162,6 +177,8 @@ help — помощь
 * простота интерфейса
 * быстрые команды без лишних экранов
 * понятная логика добавления задач
+* трекер ежедневных дел
+
 
 ### Основные проблемы
 
@@ -195,6 +212,7 @@ help — помощь
 * is_done (статус выполнения)
 * is_deleted (логическое удаление)
 
+<img width="677" height="493" alt="image" src="https://github.com/user-attachments/assets/3509969e-70f5-41d5-a34b-f1ecdf7abce2" />
 
 ---
 
@@ -250,6 +268,9 @@ help — помощь
 
 <img width="963" height="551" alt="image" src="https://github.com/user-attachments/assets/0e80aaac-c278-4ae1-b9e5-802cd32725df" />
 
+
+### Положительный фидбек от юзеров на новый функционал
+<img width="610" height="73" alt="image" src="https://github.com/user-attachments/assets/547cc187-5256-4cc7-a113-ea0d124a054c" />
 
 ---
 
