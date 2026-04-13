@@ -146,16 +146,16 @@ help — помощь
 ## Сбор фидбека
 Для тестирования было привлечено 3 пользователя, которым был отправлен бот в тг
 
-Юзер №1
+## Юзер №1  
 <img width="590" height="1280" alt="image" src="https://github.com/user-attachments/assets/66ba6cb6-94e8-4434-a060-46c13a079301" />
 <img width="805" height="217" alt="image" src="https://github.com/user-attachments/assets/a5c271e5-d738-49e4-83ce-daf275608227" />
 
-Юзер №2
+## Юзер №2  
 <img width="591" height="1280" alt="image" src="https://github.com/user-attachments/assets/d32ab2c6-9360-44b4-be21-931ff9554b39" />
 <img width="591" height="1280" alt="image" src="https://github.com/user-attachments/assets/75ea7e22-4883-4b3b-8699-4032895b54b5" />
 <img width="805" height="134" alt="image" src="https://github.com/user-attachments/assets/cd7adeb8-564b-4bec-a242-4336bbc24045" />
 
-Юзер №3
+## Юзер №3  
 <img width="1178" height="2560" alt="image" src="https://github.com/user-attachments/assets/ba2a5593-4a43-4858-a286-5c6d34ce6c5e" />
 <img width="805" height="258" alt="image" src="https://github.com/user-attachments/assets/464144aa-975a-4396-8770-a3698c421f01" />
 
